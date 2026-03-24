@@ -100,14 +100,14 @@ export function AuthPanel() {
               <Field
                 icon={UserRound}
                 label="Имя в профиле"
-                placeholder="Например, Настя 10Б"
+                placeholder="Лучше не пишите свое настоящее имя"
                 value={form.displayName}
                 onChange={updateField('displayName')}
               />
               <Field
                 icon={UserRound}
                 label="Username"
-                placeholder="например, nastya_10b"
+                placeholder="Лучше не используйте свой обычный логин"
                 value={form.username}
                 onChange={updateField('username')}
               />
