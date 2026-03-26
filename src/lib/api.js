@@ -215,16 +215,21 @@ export async function createPost({ authorId, content, files }) {
   }
 }
 
-export async function getFeedPosts({ userId } = {}) {
+export async function getFeedPosts({ includeAllStatuses = false, userId } = {}) {
   if (!supabase) {
     return demoPosts
   }
 
-  const { data, error } = await supabase
+  let query = supabase
     .from('posts_feed')
     .select('*')
-    .eq('moderation_status', 'approved')
     .order('created_at', { ascending: false })
+
+  if (!includeAllStatuses) {
+    query = query.eq('moderation_status', 'approved')
+  }
+
+  const { data, error } = await query
 
   if (error) {
     throw error

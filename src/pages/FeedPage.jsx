@@ -6,11 +6,17 @@ import { PostCard } from '../components/PostCard'
 import { useAuth } from '../context/AuthContext'
 import { addComment, getFeedPosts, toggleLike } from '../lib/api'
 
+const feedModes = [
+  { id: 'approved', label: 'Опубликованные' },
+  { id: 'all', label: 'Все' },
+]
+
 export function FeedPage() {
   const navigate = useNavigate()
   const { hasSupabaseEnv, user } = useAuth()
   const [commentingPostId, setCommentingPostId] = useState(null)
   const [error, setError] = useState('')
+  const [feedMode, setFeedMode] = useState('approved')
   const [likingPostId, setLikingPostId] = useState(null)
   const [loading, setLoading] = useState(true)
   const [posts, setPosts] = useState([])
@@ -20,14 +26,17 @@ export function FeedPage() {
     setError('')
 
     try {
-      const nextPosts = await getFeedPosts({ userId: user?.id })
+      const nextPosts = await getFeedPosts({
+        includeAllStatuses: feedMode === 'all',
+        userId: user?.id,
+      })
       setPosts(nextPosts)
     } catch (loadError) {
       setError(loadError.message ?? 'Не удалось загрузить ленту.')
     } finally {
       setLoading(false)
     }
-  }, [user?.id])
+  }, [feedMode, user?.id])
 
   useEffect(() => {
     void loadPosts()
@@ -155,8 +164,24 @@ export function FeedPage() {
         </div>
       ) : null}
 
-      <div className="flex items-center justify-between px-1">
-        <p className="text-sm font-semibold uppercase tracking-[0.24em] text-slate-400">Посты</p>
+      <div className="flex items-center justify-between gap-3 px-1">
+        <div className="flex rounded-2xl border border-white/10 bg-white/5 p-1">
+          {feedModes.map((mode) => (
+            <button
+              key={mode.id}
+              type="button"
+              onClick={() => setFeedMode(mode.id)}
+              className={`rounded-[0.95rem] px-3 py-2 text-xs font-semibold transition ${
+                feedMode === mode.id
+                  ? 'bg-white text-slate-950'
+                  : 'text-slate-300 hover:bg-white/8'
+              }`}
+            >
+              {mode.label}
+            </button>
+          ))}
+        </div>
+
         <button
           type="button"
           onClick={() => void loadPosts()}
@@ -177,7 +202,7 @@ export function FeedPage() {
             </div>
           ))}
         </div>
-      ) : (
+      ) : posts.length ? (
         <Motion.div
           initial="hidden"
           animate="visible"
@@ -191,17 +216,25 @@ export function FeedPage() {
           }}
           className="space-y-4"
         >
-          {posts.map((post) => (
-            <PostCard
-              key={post.id}
-              commenting={commentingPostId === post.id}
-              liking={likingPostId === post.id}
-              onComment={handleComment}
-              onLike={handleLike}
-              post={post}
-            />
-          ))}
+          {posts.map((post) => {
+            const canInteract = post.moderationStatus === 'approved'
+
+            return (
+              <PostCard
+                key={post.id}
+                commenting={commentingPostId === post.id}
+                liking={likingPostId === post.id}
+                onComment={canInteract ? handleComment : undefined}
+                onLike={canInteract ? handleLike : undefined}
+                post={post}
+              />
+            )
+          })}
         </Motion.div>
+      ) : (
+        <div className="glass rounded-[2rem] px-5 py-6 text-sm text-slate-300">
+          Постов пока нет.
+        </div>
       )}
     </div>
   )

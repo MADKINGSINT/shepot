@@ -1,7 +1,30 @@
 create extension if not exists pgcrypto;
 
-create type public.app_role as enum ('student', 'admin');
-create type public.moderation_status as enum ('pending', 'approved', 'rejected');
+do $$
+begin
+  if not exists (
+    select 1
+    from pg_type
+    where typnamespace = 'public'::regnamespace
+      and typname = 'app_role'
+  ) then
+    create type public.app_role as enum ('student', 'admin');
+  end if;
+end
+$$;
+
+do $$
+begin
+  if not exists (
+    select 1
+    from pg_type
+    where typnamespace = 'public'::regnamespace
+      and typname = 'moderation_status'
+  ) then
+    create type public.moderation_status as enum ('pending', 'approved', 'rejected');
+  end if;
+end
+$$;
 
 create table if not exists public.profiles (
   id uuid primary key references auth.users (id) on delete cascade,
@@ -140,11 +163,13 @@ alter table public.post_images enable row level security;
 alter table public.post_likes enable row level security;
 alter table public.comments enable row level security;
 
+drop policy if exists "Profiles are visible to everyone" on public.profiles;
 create policy "Profiles are visible to everyone"
 on public.profiles
 for select
 using (true);
 
+drop policy if exists "Users can update own profile" on public.profiles;
 create policy "Users can update own profile"
 on public.profiles
 for update
@@ -152,21 +177,20 @@ to authenticated
 using (id = auth.uid() or public.is_admin())
 with check (id = auth.uid() or public.is_admin());
 
-create policy "Approved posts are public, own and admin posts are visible"
+drop policy if exists "All posts are visible to everyone" on public.posts;
+create policy "All posts are visible to everyone"
 on public.posts
 for select
-using (
-  moderation_status = 'approved'
-  or author_id = auth.uid()
-  or public.is_admin()
-);
+using (true);
 
+drop policy if exists "Authenticated users can create posts" on public.posts;
 create policy "Authenticated users can create posts"
 on public.posts
 for insert
 to authenticated
 with check (author_id = auth.uid());
 
+drop policy if exists "Admins can moderate posts" on public.posts;
 create policy "Admins can moderate posts"
 on public.posts
 for update
@@ -174,6 +198,7 @@ to authenticated
 using (public.is_admin())
 with check (public.is_admin());
 
+drop policy if exists "Users can delete own pending posts" on public.posts;
 create policy "Users can delete own pending posts"
 on public.posts
 for delete
@@ -183,6 +208,7 @@ using (
   or public.is_admin()
 );
 
+drop policy if exists "Post images follow parent post visibility" on public.post_images;
 create policy "Post images follow parent post visibility"
 on public.post_images
 for select
@@ -191,14 +217,10 @@ using (
     select 1
     from public.posts
     where posts.id = post_images.post_id
-      and (
-        posts.moderation_status = 'approved'
-        or posts.author_id = auth.uid()
-        or public.is_admin()
-      )
   )
 );
 
+drop policy if exists "Authors can attach images to own posts" on public.post_images;
 create policy "Authors can attach images to own posts"
 on public.post_images
 for insert
@@ -212,11 +234,13 @@ with check (
   )
 );
 
+drop policy if exists "Likes are visible to everyone" on public.post_likes;
 create policy "Likes are visible to everyone"
 on public.post_likes
 for select
 using (true);
 
+drop policy if exists "Authenticated users can like approved posts" on public.post_likes;
 create policy "Authenticated users can like approved posts"
 on public.post_likes
 for insert
@@ -231,12 +255,14 @@ with check (
   )
 );
 
+drop policy if exists "Users can remove own likes" on public.post_likes;
 create policy "Users can remove own likes"
 on public.post_likes
 for delete
 to authenticated
 using (user_id = auth.uid());
 
+drop policy if exists "Comments are visible with parent post access" on public.comments;
 create policy "Comments are visible with parent post access"
 on public.comments
 for select
@@ -246,14 +272,10 @@ using (
     select 1
     from public.posts
     where posts.id = comments.post_id
-      and (
-        posts.moderation_status = 'approved'
-        or posts.author_id = auth.uid()
-        or public.is_admin()
-      )
   )
 );
 
+drop policy if exists "Authenticated users can comment approved posts" on public.comments;
 create policy "Authenticated users can comment approved posts"
 on public.comments
 for insert
@@ -268,6 +290,7 @@ with check (
   )
 );
 
+drop policy if exists "Users can manage own comments" on public.comments;
 create policy "Users can manage own comments"
 on public.comments
 for update
@@ -275,6 +298,7 @@ to authenticated
 using (author_id = auth.uid() or public.is_admin())
 with check (author_id = auth.uid() or public.is_admin());
 
+drop policy if exists "Users can delete own comments" on public.comments;
 create policy "Users can delete own comments"
 on public.comments
 for delete
@@ -285,11 +309,13 @@ insert into storage.buckets (id, name, public)
 values ('post-images', 'post-images', true)
 on conflict (id) do nothing;
 
+drop policy if exists "Public can read post images from storage" on storage.objects;
 create policy "Public can read post images from storage"
 on storage.objects
 for select
 using (bucket_id = 'post-images');
 
+drop policy if exists "Authenticated users upload images into own folder" on storage.objects;
 create policy "Authenticated users upload images into own folder"
 on storage.objects
 for insert
@@ -299,6 +325,7 @@ with check (
   and (storage.foldername(name))[1] = auth.uid()::text
 );
 
+drop policy if exists "Authenticated users manage own uploaded images" on storage.objects;
 create policy "Authenticated users manage own uploaded images"
 on storage.objects
 for update
@@ -312,6 +339,7 @@ with check (
   and (storage.foldername(name))[1] = auth.uid()::text
 );
 
+drop policy if exists "Authenticated users delete own uploaded images" on storage.objects;
 create policy "Authenticated users delete own uploaded images"
 on storage.objects
 for delete
