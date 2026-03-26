@@ -1,11 +1,10 @@
 import { AnimatePresence, motion as Motion } from 'framer-motion'
-import { LockKeyhole, Mail, UserRound } from 'lucide-react'
+import { LockKeyhole, UserRound } from 'lucide-react'
 import { useState } from 'react'
 import { useAuth } from '../context/AuthContext'
 
 const initialForm = {
   displayName: '',
-  email: '',
   password: '',
   username: '',
 }
@@ -41,23 +40,21 @@ export function AuthPanel() {
       if (mode === 'signup') {
         await signUp({
           displayName: form.displayName,
-          email: form.email,
           password: form.password,
           username: form.username,
         })
 
-        setNotice(
-          'Аккаунт создан, проверьте email.',
-        )
+        setNotice('Аккаунт создан. Теперь можно войти.')
         setMode('signin')
         setForm((current) => ({
           ...current,
+          displayName: '',
           password: '',
         }))
       } else {
         await signIn({
-          email: form.email,
           password: form.password,
+          username: form.username,
         })
       }
     } catch (submitError) {
@@ -100,28 +97,20 @@ export function AuthPanel() {
               <Field
                 icon={UserRound}
                 label="Имя в профиле"
-                placeholder="Лучше не пишите свое настоящее имя"
+                placeholder="Например, Аноним 9Б"
                 value={form.displayName}
                 onChange={updateField('displayName')}
-              />
-              <Field
-                icon={UserRound}
-                label="Username"
-                placeholder="Лучше не используйте свой обычный логин"
-                value={form.username}
-                onChange={updateField('username')}
               />
             </Motion.div>
           ) : null}
         </AnimatePresence>
 
         <Field
-          icon={Mail}
-          label="Email"
-          placeholder="you@example.com"
-          type="email"
-          value={form.email}
-          onChange={updateField('email')}
+          icon={UserRound}
+          label="Username"
+          placeholder="Например, whisper_9b"
+          value={form.username}
+          onChange={updateField('username')}
         />
         <Field
           icon={LockKeyhole}
@@ -153,7 +142,7 @@ export function AuthPanel() {
             ? 'Подождите...'
             : mode === 'signup'
               ? 'Создать аккаунт'
-              : 'Войти в приложение'}
+              : 'Войти'}
         </button>
       </form>
     </div>

@@ -9,6 +9,17 @@ import {
 import { hasSupabaseEnv, supabase } from '../lib/supabase'
 
 const AuthContext = createContext(null)
+const AUTH_EMAIL_DOMAIN = 'auth.co2.local'
+
+function normalizeUsername(username) {
+  return String(username ?? '')
+    .trim()
+    .toLowerCase()
+}
+
+function buildAuthEmail(username) {
+  return `${normalizeUsername(username)}@${AUTH_EMAIL_DOMAIN}`
+}
 
 async function fetchProfile(userId) {
   if (!supabase) {
@@ -89,13 +100,19 @@ export function AuthProvider({ children }) {
     }
   }, [refreshProfile])
 
-  const signIn = useCallback(async ({ email, password }) => {
+  const signIn = useCallback(async ({ password, username }) => {
     if (!supabase) {
       throw new Error('Сначала подключите Supabase в файле .env.')
     }
 
+    const normalizedUsername = normalizeUsername(username)
+
+    if (normalizedUsername.length < 3) {
+      throw new Error('Введите корректный username.')
+    }
+
     const { error } = await supabase.auth.signInWithPassword({
-      email,
+      email: buildAuthEmail(normalizedUsername),
       password,
     })
 
@@ -104,19 +121,28 @@ export function AuthProvider({ children }) {
     }
   }, [])
 
-  const signUp = useCallback(async ({ displayName, email, password, username }) => {
+  const signUp = useCallback(async ({ displayName, password, username }) => {
     if (!supabase) {
       throw new Error('Сначала подключите Supabase в файле .env.')
     }
 
-    const normalizedUsername = username.trim().toLowerCase()
+    const normalizedUsername = normalizeUsername(username)
+    const normalizedDisplayName = String(displayName ?? '').trim()
+
+    if (normalizedUsername.length < 3) {
+      throw new Error('Username должен быть не короче 3 символов.')
+    }
+
+    if (normalizedDisplayName.length < 2) {
+      throw new Error('Укажите имя профиля длиной хотя бы 2 символа.')
+    }
 
     const { error } = await supabase.auth.signUp({
-      email,
+      email: buildAuthEmail(normalizedUsername),
       password,
       options: {
         data: {
-          display_name: displayName.trim(),
+          display_name: normalizedDisplayName,
           username: normalizedUsername,
         },
       },

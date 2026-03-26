@@ -69,7 +69,7 @@ export function ProfilePage() {
                 {profile?.display_name ?? 'Пользователь'}
               </h2>
               <p className="text-sm text-slate-400">
-                {profile?.username ? `@${profile.username}` : user.email}
+                {profile?.username ? `@${profile.username}` : 'Без username'}
               </p>
             </div>
           </div>
@@ -149,8 +149,7 @@ export function ProfilePage() {
             ))
           ) : (
             <p className="rounded-[1.5rem] border border-dashed border-white/10 px-4 py-5 text-sm text-slate-400">
-              Вы еще не отправляли посты. Самое время открыть вкладку создания и
-              опубликовать первый материал.
+              Вы еще не отправляли посты.
             </p>
           )}
         </div>
